@@ -1,0 +1,953 @@
+load(":rules.bzl", "node_configure", "node_mksnapshot")
+
+cc_library(
+    name = "postject",
+    hdrs = [
+        "deps/postject/postject-api.h",
+    ],
+    strip_include_prefix = "deps/postject",
+)
+
+cc_library(
+    name = "base64",
+    srcs = [
+        "deps/base64/base64/lib/arch/avx/codec.c",
+        "deps/base64/base64/lib/arch/avx2/codec.c",
+        "deps/base64/base64/lib/arch/generic/codec.c",
+        "deps/base64/base64/lib/arch/neon32/codec.c",
+        "deps/base64/base64/lib/arch/neon64/codec.c",
+        "deps/base64/base64/lib/arch/sse41/codec.c",
+        "deps/base64/base64/lib/arch/sse42/codec.c",
+        "deps/base64/base64/lib/arch/ssse3/codec.c",
+        "deps/base64/base64/lib/codec_choose.c",
+        "deps/base64/base64/lib/codecs.h",
+        "deps/base64/base64/lib/config.h",
+        "deps/base64/base64/lib/env.h",
+        "deps/base64/base64/lib/lib.c",
+        "deps/base64/base64/lib/tables/table_dec_32bit.h",
+        "deps/base64/base64/lib/tables/table_enc_12bit.h",
+        "deps/base64/base64/lib/tables/tables.c",
+        "deps/base64/base64/lib/tables/tables.h",
+    ],
+    hdrs = [
+        "deps/base64/base64/include/libbase64.h",
+    ],
+    copts = [
+        "-Iexternal/node/deps/base64/base64/lib",
+        "-Wno-unused-but-set-variable",
+    ] + select({
+        "//deps/v8/bazel/config:is_arm": [
+            "-mfpu=neon",
+        ],
+        "//deps/v8/bazel/config:is_arm64": [
+            # Neon is implied with arm64.
+        ],
+        "//conditions:default": [
+            "-mssse3",
+            "-msse4.1",
+            "-msse4.2",
+            "-mavx",
+            "-mavx2",
+        ],
+    }),
+    defines = [
+        "BASE64_STATIC_DEFINE",
+    ] + select({
+        "//deps/v8/bazel/config:is_arm": [
+            "HAVE_NEON32=1",
+        ],
+        "//deps/v8/bazel/config:is_arm64": [
+            "HAVE_NEON64=1",
+        ],
+        "//conditions:default": [
+            "HAVE_SSSE3=1",
+            "HAVE_SSE41=1",
+            "HAVE_SSE42=1",
+            "HAVE_AVX=1",
+            "HAVE_AVX2=1",
+        ],
+    }),
+    strip_include_prefix = "deps/base64/base64/include",
+    textual_hdrs = [
+        "deps/base64/base64/lib/arch/avx2/enc_loop.c",
+        "deps/base64/base64/lib/arch/avx2/enc_reshuffle.c",
+        "deps/base64/base64/lib/arch/avx2/enc_translate.c",
+        "deps/base64/base64/lib/arch/avx2/dec_loop.c",
+        "deps/base64/base64/lib/arch/avx2/dec_reshuffle.c",
+        "deps/base64/base64/lib/arch/neon32/enc_loop.c",
+        "deps/base64/base64/lib/arch/neon32/enc_reshuffle.c",
+        "deps/base64/base64/lib/arch/neon32/enc_translate.c",
+        "deps/base64/base64/lib/arch/neon32/dec_loop.c",
+        "deps/base64/base64/lib/arch/ssse3/enc_loop.c",
+        "deps/base64/base64/lib/arch/ssse3/enc_reshuffle.c",
+        "deps/base64/base64/lib/arch/ssse3/enc_translate.c",
+        "deps/base64/base64/lib/arch/ssse3/dec_loop.c",
+        "deps/base64/base64/lib/arch/ssse3/dec_reshuffle.c",
+        "deps/base64/base64/lib/arch/neon64/enc_loop.c",
+        "deps/base64/base64/lib/arch/neon64/enc_reshuffle.c",
+        "deps/base64/base64/lib/arch/neon64/dec_loop.c",
+        "deps/base64/base64/lib/arch/neon64/enc_loop_asm.c",
+        "deps/base64/base64/lib/arch/generic/32/enc_loop.c",
+        "deps/base64/base64/lib/arch/generic/32/dec_loop.c",
+        "deps/base64/base64/lib/arch/generic/enc_tail.c",
+        "deps/base64/base64/lib/arch/generic/dec_tail.c",
+        "deps/base64/base64/lib/arch/generic/64/enc_loop.c",
+        "deps/base64/base64/lib/arch/generic/enc_head.c",
+        "deps/base64/base64/lib/arch/generic/dec_head.c",
+    ],
+)
+
+cc_library(
+    name = "ada",
+    srcs = [
+        "deps/ada/ada.cpp",
+    ],
+    hdrs = [
+        "deps/ada/ada.h",
+        "deps/ada/ada_c.h",
+    ],
+    strip_include_prefix = "deps/ada",
+)
+
+cc_library(
+    name = "simdutf",
+    srcs = [
+        "deps/simdutf/simdutf.cpp",
+    ],
+    hdrs = [
+        "deps/simdutf/simdutf.h",
+    ],
+    copts = [
+        "-Wno-unused-function",
+    ],
+    strip_include_prefix = "deps/simdutf",
+)
+
+cc_library(
+    name = "cares",
+    srcs = [
+        "deps/cares/src/lib/ares__addrinfo2hostent.c",
+        "deps/cares/src/lib/ares__addrinfo_localhost.c",
+        "deps/cares/src/lib/ares_android.h",
+        "deps/cares/src/lib/ares_android.c",
+        "deps/cares/src/lib/ares_cancel.c",
+        "deps/cares/src/lib/ares__close_sockets.c",
+        "deps/cares/src/lib/ares_create_query.c",
+        "deps/cares/src/lib/ares_data.c",
+        "deps/cares/src/lib/ares_data.h",
+        "deps/cares/src/lib/ares_destroy.c",
+        "deps/cares/src/lib/ares_expand_name.c",
+        "deps/cares/src/lib/ares_expand_string.c",
+        "deps/cares/src/lib/ares_fds.c",
+        "deps/cares/src/lib/ares_free_hostent.c",
+        "deps/cares/src/lib/ares_free_string.c",
+        "deps/cares/src/lib/ares_freeaddrinfo.c",
+        "deps/cares/src/lib/ares_getenv.h",
+        "deps/cares/src/lib/ares_getaddrinfo.c",
+        "deps/cares/src/lib/ares_gethostbyaddr.c",
+        "deps/cares/src/lib/ares_gethostbyname.c",
+        "deps/cares/src/lib/ares__get_hostent.c",
+        "deps/cares/src/lib/ares_getnameinfo.c",
+        "deps/cares/src/lib/ares_getsock.c",
+        "deps/cares/src/lib/ares_init.c",
+        "deps/cares/src/lib/ares_ipv6.h",
+        "deps/cares/src/lib/ares_library_init.c",
+        "deps/cares/src/lib/ares_llist.c",
+        "deps/cares/src/lib/ares_llist.h",
+        "deps/cares/src/lib/ares_mkquery.c",
+        "deps/cares/src/lib/ares_nowarn.c",
+        "deps/cares/src/lib/ares_nowarn.h",
+        "deps/cares/src/lib/ares_options.c",
+        "deps/cares/src/lib/ares__parse_into_addrinfo.c",
+        "deps/cares/src/lib/ares_parse_aaaa_reply.c",
+        "deps/cares/src/lib/ares_parse_a_reply.c",
+        "deps/cares/src/lib/ares_parse_caa_reply.c",
+        "deps/cares/src/lib/ares_parse_mx_reply.c",
+        "deps/cares/src/lib/ares_parse_naptr_reply.c",
+        "deps/cares/src/lib/ares_parse_ns_reply.c",
+        "deps/cares/src/lib/ares_parse_ptr_reply.c",
+        "deps/cares/src/lib/ares_parse_soa_reply.c",
+        "deps/cares/src/lib/ares_parse_srv_reply.c",
+        "deps/cares/src/lib/ares_parse_txt_reply.c",
+        "deps/cares/src/lib/ares_parse_uri_reply.c",
+        "deps/cares/src/lib/ares_platform.h",
+        "deps/cares/src/lib/ares_private.h",
+        "deps/cares/src/lib/ares_process.c",
+        "deps/cares/src/lib/ares_query.c",
+        "deps/cares/src/lib/ares_rand.c",
+        "deps/cares/src/lib/ares__read_line.c",
+        "deps/cares/src/lib/ares__readaddrinfo.c",
+        "deps/cares/src/lib/ares_search.c",
+        "deps/cares/src/lib/ares_send.c",
+        "deps/cares/src/lib/ares_setup.h",
+        "deps/cares/src/lib/ares__sortaddrinfo.c",
+        "deps/cares/src/lib/ares_strcasecmp.c",
+        "deps/cares/src/lib/ares_strcasecmp.h",
+        "deps/cares/src/lib/ares_strdup.c",
+        "deps/cares/src/lib/ares_strdup.h",
+        "deps/cares/src/lib/ares_strerror.c",
+        "deps/cares/src/lib/ares_strsplit.c",
+        "deps/cares/src/lib/ares_strsplit.h",
+        "deps/cares/src/lib/ares_timeout.c",
+        "deps/cares/src/lib/ares__timeval.c",
+        "deps/cares/src/lib/ares_version.c",
+        "deps/cares/src/lib/ares_writev.c",
+        "deps/cares/src/lib/ares_writev.h",
+        "deps/cares/src/lib/bitncmp.c",
+        "deps/cares/src/lib/bitncmp.h",
+        "deps/cares/src/lib/inet_net_pton.c",
+        "deps/cares/src/lib/inet_ntop.c",
+        "deps/cares/src/lib/ares_inet_net_pton.h",
+        "deps/cares/src/lib/setup_once.h",
+        "deps/cares/src/tools/ares_getopt.c",
+        "deps/cares/src/tools/ares_getopt.h",
+    ] + select({
+        "//deps/v8/bazel/config:is_linux": [
+            "deps/cares/config/linux/ares_config.h",
+        ],
+        "//deps/v8/bazel/config:is_windows": [
+            "deps/cares/src/lib/config-win32.h",
+            "deps/cares/src/lib/windows_port.c",
+            "deps/cares/src/lib/ares_getenv.c",
+            "deps/cares/src/lib/ares_iphlpapi.h",
+            "deps/cares/src/lib/ares_platform.c",
+        ],
+        "//deps/v8/bazel/config:is_android": [
+            "deps/cares/config/android/ares_config.h",
+        ],
+        "//deps/v8/bazel/config:is_apple": [
+            "deps/cares/config/darwin/ares_config.h",
+        ],
+    }),
+    hdrs = [
+        "deps/cares/include/ares.h",
+        "deps/cares/include/ares_build.h",
+        "deps/cares/include/ares_dns.h",
+        "deps/cares/include/ares_nameser.h",
+        "deps/cares/include/ares_rules.h",
+        "deps/cares/include/ares_version.h",
+    ],
+    copts = select({
+        "//deps/v8/bazel/config:is_linux": [
+            "-Iexternal/node/deps/cares/config/linux",
+        ],
+        "//deps/v8/bazel/config:is_windows": [
+        ],
+        "//deps/v8/bazel/config:is_android": [
+            "-Iexternal/node/deps/cares/config/android",
+        ],
+        "//deps/v8/bazel/config:is_apple": [
+            "-Iexternal/node/deps/cares/config/darwin",
+        ],
+    }),
+    defines = [
+        # "CARES_STATICLIB",  # IS THIS OK? BECAUSE IT IS DEFINED IN cares_wrap.h?
+        "CARES_BUILDING_LIBRARY",
+    ] + select({
+        "//deps/v8/bazel/config:is_windows": [
+            "CARES_PULL_WS2TCPIP_H=1",
+            "_WINSOCK_DEPRECATED_NO_WARNINGS",
+        ],
+        "//conditions:default": [
+        ],
+    }),
+    local_defines = [
+    ] + select({
+        "//deps/v8/bazel/config:is_windows": [
+        ],
+        "//conditions:default": [
+            "HAVE_CONFIG_H",
+            "_LARGEFILE_SOURCE",
+            "_FILE_OFFSET_BITS=64",
+            "_GNU_SOURCE",
+        ],
+    }) + select({
+        "//deps/v8/bazel/config:is_apple": [
+            "_DARWIN_USE_64_BIT_INODE=1",
+        ],
+        "//conditions:default": [
+        ],
+    }),
+    strip_include_prefix = "deps/cares/include",
+)
+
+cc_library(
+    name = "nghttp2",
+    srcs = [
+        "deps/nghttp2/lib/includes/config.h",
+        "deps/nghttp2/lib/nghttp2_buf.c",
+        "deps/nghttp2/lib/nghttp2_buf.h",
+        "deps/nghttp2/lib/nghttp2_callbacks.c",
+        "deps/nghttp2/lib/nghttp2_callbacks.h",
+        "deps/nghttp2/lib/nghttp2_debug.c",
+        "deps/nghttp2/lib/nghttp2_debug.h",
+        "deps/nghttp2/lib/nghttp2_extpri.c",
+        "deps/nghttp2/lib/nghttp2_extpri.h",
+        "deps/nghttp2/lib/nghttp2_frame.c",
+        "deps/nghttp2/lib/nghttp2_frame.h",
+        "deps/nghttp2/lib/nghttp2_hd.c",
+        "deps/nghttp2/lib/nghttp2_hd.h",
+        "deps/nghttp2/lib/nghttp2_hd_huffman.c",
+        "deps/nghttp2/lib/nghttp2_hd_huffman.h",
+        "deps/nghttp2/lib/nghttp2_hd_huffman_data.c",
+        "deps/nghttp2/lib/nghttp2_helper.c",
+        "deps/nghttp2/lib/nghttp2_helper.h",
+        "deps/nghttp2/lib/nghttp2_http.c",
+        "deps/nghttp2/lib/nghttp2_http.h",
+        "deps/nghttp2/lib/nghttp2_int.h",
+        "deps/nghttp2/lib/nghttp2_map.c",
+        "deps/nghttp2/lib/nghttp2_map.h",
+        "deps/nghttp2/lib/nghttp2_mem.c",
+        "deps/nghttp2/lib/nghttp2_mem.h",
+        "deps/nghttp2/lib/nghttp2_net.h",
+        "deps/nghttp2/lib/nghttp2_npn.c",
+        "deps/nghttp2/lib/nghttp2_npn.h",
+        "deps/nghttp2/lib/nghttp2_option.c",
+        "deps/nghttp2/lib/nghttp2_option.h",
+        "deps/nghttp2/lib/nghttp2_outbound_item.c",
+        "deps/nghttp2/lib/nghttp2_outbound_item.h",
+        "deps/nghttp2/lib/nghttp2_pq.c",
+        "deps/nghttp2/lib/nghttp2_pq.h",
+        "deps/nghttp2/lib/nghttp2_priority_spec.c",
+        "deps/nghttp2/lib/nghttp2_priority_spec.h",
+        "deps/nghttp2/lib/nghttp2_queue.c",
+        "deps/nghttp2/lib/nghttp2_queue.h",
+        "deps/nghttp2/lib/nghttp2_rcbuf.c",
+        "deps/nghttp2/lib/nghttp2_rcbuf.h",
+        "deps/nghttp2/lib/nghttp2_session.c",
+        "deps/nghttp2/lib/nghttp2_session.h",
+        "deps/nghttp2/lib/nghttp2_stream.c",
+        "deps/nghttp2/lib/nghttp2_stream.h",
+        "deps/nghttp2/lib/nghttp2_submit.c",
+        "deps/nghttp2/lib/nghttp2_submit.h",
+        "deps/nghttp2/lib/nghttp2_version.c",
+        "deps/nghttp2/lib/sfparse.c",
+        "deps/nghttp2/lib/sfparse.h",
+    ],
+    hdrs = [
+        "deps/nghttp2/lib/includes/nghttp2/nghttp2.h",
+        "deps/nghttp2/lib/includes/nghttp2/nghttp2ver.h",
+    ],
+    copts = [
+        "-Iexternal/node/deps/nghttp2/lib/includes",
+    ],
+    defines = [
+        "NGHTTP2_STATICLIB",
+        "BUILDING_NGHTTP2",
+    ],
+    local_defines = [
+        "HAVE_CONFIG_H",
+    ],
+    strip_include_prefix = "deps/nghttp2/lib/includes",
+)
+
+cc_library(
+    name = "llhttp",
+    srcs = [
+        "deps/llhttp/src/api.c",
+        "deps/llhttp/src/http.c",
+        "deps/llhttp/src/llhttp.c",
+    ],
+    hdrs = [
+        "deps/llhttp/include/llhttp.h",
+    ],
+    strip_include_prefix = "deps/llhttp/include",
+)
+
+cc_library(
+    name = "uvwasi",
+    srcs = [
+        "deps/uvwasi/src/clocks.c",
+        "deps/uvwasi/src/clocks.h",
+        "deps/uvwasi/src/debug.h",
+        "deps/uvwasi/src/fd_table.c",
+        "deps/uvwasi/src/fd_table.h",
+        "deps/uvwasi/src/path_resolver.c",
+        "deps/uvwasi/src/path_resolver.h",
+        "deps/uvwasi/src/poll_oneoff.c",
+        "deps/uvwasi/src/poll_oneoff.h",
+        "deps/uvwasi/src/uv_mapping.c",
+        "deps/uvwasi/src/uv_mapping.h",
+        "deps/uvwasi/src/uvwasi.c",
+        "deps/uvwasi/src/uvwasi_alloc.h",
+        "deps/uvwasi/src/wasi_rights.c",
+        "deps/uvwasi/src/wasi_rights.h",
+        "deps/uvwasi/src/wasi_serdes.c",
+    ],
+    hdrs = [
+        "deps/uvwasi/include/uvwasi.h",
+        "deps/uvwasi/include/wasi_serdes.h",
+        "deps/uvwasi/include/wasi_types.h",
+    ],
+    strip_include_prefix = "deps/uvwasi/include",
+    deps = [
+        ":uv",
+    ],
+)
+
+cc_library(
+    name = "hdr-histogram",
+    srcs = [
+        "deps/histogram/src/hdr_atomic.h",
+        "deps/histogram/src/hdr_histogram.c",
+        "deps/histogram/src/hdr_malloc.h",
+        "deps/histogram/src/hdr_tests.h",
+    ],
+    hdrs = [
+        "deps/histogram/include/hdr/hdr_histogram.h",
+        "deps/histogram/include/hdr/hdr_histogram_version.h",
+    ],
+    strip_include_prefix = "deps/histogram/include",
+)
+
+cc_library(
+    name = "uv",
+    srcs = [
+        "deps/uv/src/fs-poll.c",
+        "deps/uv/src/heap-inl.h",
+        "deps/uv/src/idna.c",
+        "deps/uv/src/idna.h",
+        "deps/uv/src/inet.c",
+        "deps/uv/src/queue.h",
+        "deps/uv/src/random.c",
+        "deps/uv/src/strscpy.c",
+        "deps/uv/src/strscpy.h",
+        "deps/uv/src/strtok.c",
+        "deps/uv/src/strtok.h",
+        "deps/uv/src/threadpool.c",
+        "deps/uv/src/timer.c",
+        "deps/uv/src/uv-data-getter-setters.c",
+        "deps/uv/src/uv-common.c",
+        "deps/uv/src/uv-common.h",
+        "deps/uv/src/version.c",
+    ] + select({
+        "//deps/v8/bazel/config:is_windows": [
+            "deps/uv/src/win/async.c",
+            "deps/uv/src/win/core.c",
+            "deps/uv/src/win/detect-wakeup.c",
+            "deps/uv/src/win/dl.c",
+            "deps/uv/src/win/error.c",
+            "deps/uv/src/win/fs.c",
+            "deps/uv/src/win/fs-event.c",
+            "deps/uv/src/win/getaddrinfo.c",
+            "deps/uv/src/win/getnameinfo.c",
+            "deps/uv/src/win/handle.c",
+            "deps/uv/src/win/loop-watcher.c",
+            "deps/uv/src/win/pipe.c",
+            "deps/uv/src/win/thread.c",
+            "deps/uv/src/win/poll.c",
+            "deps/uv/src/win/process.c",
+            "deps/uv/src/win/process-stdio.c",
+            "deps/uv/src/win/signal.c",
+            "deps/uv/src/win/snprintf.c",
+            "deps/uv/src/win/stream.c",
+            "deps/uv/src/win/tcp.c",
+            "deps/uv/src/win/tty.c",
+            "deps/uv/src/win/udp.c",
+            "deps/uv/src/win/util.c",
+            "deps/uv/src/win/winapi.c",
+            "deps/uv/src/win/winsock.c",
+            "deps/uv/src/win/winsock.h",
+            "deps/uv/src/win/internal.h",
+            "deps/uv/src/win/winapi.h",
+            "deps/uv/src/win/handle-inl.h",
+            "deps/uv/src/win/stream-inl.h",
+            "deps/uv/src/win/req-inl.h",
+            "deps/uv/src/win/fs-fd-hash-inl.h",
+            "deps/uv/src/win/atomicops-inl.h",
+        ],
+        "//conditions:default": [
+            "deps/uv/src/unix/async.c",
+            "deps/uv/src/unix/core.c",
+            "deps/uv/src/unix/dl.c",
+            "deps/uv/src/unix/fs.c",
+            "deps/uv/src/unix/getaddrinfo.c",
+            "deps/uv/src/unix/getnameinfo.c",
+            "deps/uv/src/unix/internal.h",
+            "deps/uv/src/unix/loop.c",
+            "deps/uv/src/unix/loop-watcher.c",
+            "deps/uv/src/unix/pipe.c",
+            "deps/uv/src/unix/poll.c",
+            "deps/uv/src/unix/process.c",
+            "deps/uv/src/unix/random-devurandom.c",
+            "deps/uv/src/unix/signal.c",
+            "deps/uv/src/unix/stream.c",
+            "deps/uv/src/unix/tcp.c",
+            "deps/uv/src/unix/thread.c",
+            "deps/uv/src/unix/tty.c",
+            "deps/uv/src/unix/udp.c",
+        ],
+    }) + select({
+        "//deps/v8/bazel/config:is_android": [
+            "deps/uv/src/unix/linux.c",
+            "deps/uv/src/unix/procfs-exepath.c",
+            "deps/uv/src/unix/random-getentropy.c",
+            "deps/uv/src/unix/random-getrandom.c",
+            "deps/uv/src/unix/random-sysctl-linux.c",
+            "deps/uv/src/unix/proctitle.c",
+        ],
+        "//deps/v8/bazel/config:is_linux": [
+            "deps/uv/src/unix/proctitle.c",
+            "deps/uv/src/unix/linux.c",
+            "deps/uv/src/unix/procfs-exepath.c",
+            "deps/uv/src/unix/random-getrandom.c",
+            "deps/uv/src/unix/random-sysctl-linux.c",
+        ],
+        "//deps/v8/bazel/config:is_apple": [
+            "deps/uv/src/unix/bsd-ifaddrs.c",
+            "deps/uv/src/unix/kqueue.c",
+            "deps/uv/src/unix/darwin.c",
+            "deps/uv/src/unix/fsevents.c",
+            "deps/uv/src/unix/darwin-stub.h",
+            "deps/uv/src/unix/darwin-proctitle.c",
+            "deps/uv/src/unix/random-getentropy.c",
+            "deps/uv/src/unix/proctitle.c",
+        ],
+        "//deps/v8/bazel/config:is_windows": [
+        ],
+        "//conditions:default": [],
+    }),
+    hdrs = [
+        "deps/uv/include/uv.h",
+        "deps/uv/include/uv/aix.h",
+        "deps/uv/include/uv/bsd.h",
+        "deps/uv/include/uv/darwin.h",
+        "deps/uv/include/uv/errno.h",
+        "deps/uv/include/uv/linux.h",
+        "deps/uv/include/uv/os390.h",
+        "deps/uv/include/uv/posix.h",
+        "deps/uv/include/uv/sunos.h",
+        "deps/uv/include/uv/threadpool.h",
+        "deps/uv/include/uv/tree.h",
+        "deps/uv/include/uv/unix.h",
+        "deps/uv/include/uv/version.h",
+        "deps/uv/include/uv/win.h",
+    ],
+    copts = [
+        "-Iexternal/node/deps/uv/src",
+        "-Wno-unused-parameter",
+        "-Wno-unused-variable",
+        "-Wno-missing-braces",
+        "-Wno-deprecated-declarations",
+        "-Wno-incompatible-pointer-types",
+        "-Wno-unused-function",
+        "-Wno-unused-but-set-variable",
+        "-Wstrict-prototypes",
+    ],
+    linkopts = select({
+        "//deps/v8/bazel/config:is_windows": [
+            "-lpsapi",
+            "-luser32",
+            "-ladvapi32",
+            "-liphlpapi",
+            "-luserenv",
+            "-lws2_32,",
+        ],
+        "//deps/v8/bazel/config:is_linux": [
+            "-ldl",
+            "-lrt",
+        ],
+        "//conditions:default": [],
+    }),
+    local_defines = select({
+        "//deps/v8/bazel/config:is_windows": [
+            "_WIN32_WINNT=0x0602",
+            "_GNU_SOURCE",
+        ],
+        "//deps/v8/bazel/config:is_apple": [
+            "_DARWIN_UNLIMITED_SELECT=1",
+            "_DARWIN_USE_64_BIT_INODE=1",
+            "_LARGEFILE_SOURCE",
+            "_FILE_OFFSET_BITS=64",
+        ],
+        "//deps/v8/bazel/config:is_linux": [
+            "_GNU_SOURCE",
+            "_POSIX_C_SOURCE=200112",
+            "_LARGEFILE_SOURCE",
+            "_FILE_OFFSET_BITS=64",
+        ],
+        "//deps/v8/bazel/config:is_android": [
+            "_GNU_SOURCE",
+            "_POSIX_C_SOURCE=200112",
+            "_LARGEFILE_SOURCE",
+            "_FILE_OFFSET_BITS=64",
+        ],
+    }),
+    strip_include_prefix = "deps/uv/include",
+)
+
+cc_library(
+    name = "node-core",
+    srcs = [
+        ":node-javascript",
+        "src/api/async_resource.cc",
+        "src/api/callback.cc",
+        "src/api/embed_helpers.cc",
+        "src/api/encoding.cc",
+        "src/api/environment.cc",
+        "src/api/exceptions.cc",
+        "src/api/hooks.cc",
+        "src/api/utils.cc",
+        "src/async_wrap.cc",
+        "src/base_object.cc",
+        "src/cares_wrap.cc",
+        "src/cleanup_queue.cc",
+        "src/connect_wrap.cc",
+        "src/connection_wrap.cc",
+        "src/dataqueue/queue.cc",
+        "src/debug_utils.cc",
+        "src/encoding_binding.cc",
+        "src/env.cc",
+        "src/fs_event_wrap.cc",
+        "src/handle_wrap.cc",
+        "src/heap_utils.cc",
+        "src/histogram.cc",
+        "src/js_native_api_v8.cc",
+        "src/js_stream.cc",
+        "src/json_utils.cc",
+        "src/js_udp_wrap.cc",
+        "src/json_parser.cc",
+        "src/module_wrap.cc",
+        "src/node.cc",
+        "src/node_api.cc",
+        "src/node_binding.cc",
+        "src/node_blob.cc",
+        "src/node_buffer.cc",
+        "src/node_builtins.cc",
+        "src/node_config.cc",
+        "src/node_constants.cc",
+        "src/node_contextify.cc",
+        "src/node_credentials.cc",
+        "src/node_dir.cc",
+        "src/node_dotenv.cc",
+        "src/node_env_var.cc",
+        "src/node_errors.cc",
+        "src/node_external_reference.cc",
+        "src/node_file.cc",
+        "src/node_http_parser.cc",
+        "src/node_http2.cc",
+        "src/node_i18n.cc",
+        "src/node_main_instance.cc",
+        "src/node_messaging.cc",
+        "src/node_metadata.cc",
+        "src/node_options.cc",
+        "src/node_os.cc",
+        "src/node_perf.cc",
+        "src/node_platform.cc",
+        "src/node_postmortem_metadata.cc",
+        "src/node_process_events.cc",
+        "src/node_process_methods.cc",
+        "src/node_process_object.cc",
+        "src/node_realm.cc",
+        "src/node_report.cc",
+        "src/node_report_module.cc",
+        "src/node_report_utils.cc",
+        "src/node_sea.cc",
+        "src/node_serdes.cc",
+        "src/node_shadow_realm.cc",
+        "src/node_snapshotable.cc",
+        "src/node_sockaddr.cc",
+        "src/node_stat_watcher.cc",
+        "src/node_symbols.cc",
+        "src/node_task_queue.cc",
+        "src/node_trace_events.cc",
+        "src/node_types.cc",
+        "src/node_url.cc",
+        "src/node_util.cc",
+        "src/node_v8.cc",
+        "src/node_wasi.cc",
+        "src/node_wasm_web_api.cc",
+        "src/node_watchdog.cc",
+        "src/node_worker.cc",
+        "src/node_zlib.cc",
+        "src/permission/child_process_permission.cc",
+        "src/permission/fs_permission.cc",
+        "src/permission/inspector_permission.cc",
+        "src/permission/permission.cc",
+        "src/permission/worker_permission.cc",
+        "src/pipe_wrap.cc",
+        "src/process_wrap.cc",
+        "src/signal_wrap.cc",
+        "src/spawn_sync.cc",
+        "src/stream_base.cc",
+        "src/stream_pipe.cc",
+        "src/stream_wrap.cc",
+        "src/string_bytes.cc",
+        "src/string_decoder.cc",
+        "src/tcp_wrap.cc",
+        "src/timers.cc",
+        "src/timer_wrap.cc",
+        "src/tracing/agent.cc",
+        "src/tracing/node_trace_buffer.cc",
+        "src/tracing/node_trace_writer.cc",
+        "src/tracing/trace_event.cc",
+        "src/tracing/traced_value.cc",
+        "src/tty_wrap.cc",
+        "src/udp_wrap.cc",
+        "src/util.cc",
+        "src/uv.cc",
+    ] + glob([
+        "src/*.h",
+        "src/**/*.h",
+    ]),
+    copts = [
+        "-Iexternal/node/src",
+        "-Wno-deprecated-declarations",
+        "-Wno-unused-function",
+        "-Wno-unused-variable",
+    ],
+    defines = select({
+        "//deps/v8/bazel/config:v8_target_x64": [
+            "NODE_ARCH=\\\"x64\\\"",
+        ],
+        "//deps/v8/bazel/config:v8_target_ia32": [
+            "NODE_ARCH=\\\"ia32\\\"",
+        ],
+        "//deps/v8/bazel/config:v8_target_arm": [
+            "NODE_ARCH=\\\"arm\\\"",
+        ],
+        "//deps/v8/bazel/config:v8_target_arm64": [
+            "NODE_ARCH=\\\"arm64\\\"",
+        ],
+    }) + select({
+        "//deps/v8/bazel/config:v8_target_windows": [
+            "NODE_PLATFORM=\\\"win32\\\"",
+        ],
+        "//deps/v8/bazel/config:v8_target_linux": [
+            "NODE_PLATFORM=\\\"linux\\\"",
+        ],
+        "//deps/v8/bazel/config:v8_target_android": [
+            "NODE_PLATFORM=\\\"android\\\"",
+        ],
+        "//deps/v8/bazel/config:v8_target_macos": [
+            "NODE_PLATFORM=\\\"darwin\\\"",
+        ],
+        "//deps/v8/bazel/config:v8_target_ios": [
+            "NODE_PLATFORM=\\\"darwin\\\"",
+        ],
+    }),
+    linkopts = select({
+        "//deps/v8/bazel/config:is_android": [
+            "-llog",
+        ],
+        "//conditions:default": [
+        ],
+    }),
+    local_defines = [
+        "NODE_WANT_INTERNALS=1",
+    ] + select({
+        "//deps/v8/bazel/config:is_windows": [
+        ],
+        "//conditions:default": [
+            "__POSIX__",
+        ],
+    }),
+    deps = [
+        ":ada",
+        ":base64",
+        ":cares",
+        ":hdr-histogram",
+        ":llhttp",
+        ":nghttp2",
+        ":postject",
+        ":uv",
+        ":uvwasi",
+        ":large-pages",
+        ":simdutf",
+        "@com_google_googletest//:gtest_prod",
+        "@org_brotli//:brotlidec",
+        "@org_brotli//:brotlienc",
+        "//deps/v8:v8_icu",
+        #"@zlib-chromium//:zlib",  # Fix missing symbols then use this.
+        "@zlib",
+    ],
+)
+
+py_binary(
+    name = "configure-lite",
+    srcs = [
+        "configure-lite.py",
+        "tools/getmoduleversion.py",
+        "tools/getnapibuildversion.py",
+        "tools/getsharedopensslhasquic.py",
+        "tools/utils.py",
+    ],
+)
+
+node_configure(
+    name = "config-gypi",
+    srcs = [
+        "src/node_version.h",
+        "tools/icu/current_ver.dep",
+        "tools/icu/icu_versions.json",
+        ":lib-js",
+        ":v8-js",
+    ],
+    configure_tool = ":configure-lite",
+    cpu = select({
+        "//deps/v8/bazel/config:v8_target_arm64": "arm64",
+        "//deps/v8/bazel/config:v8_target_arm": "arm",
+        "//deps/v8/bazel/config:v8_target_x64": "x64",
+        "//deps/v8/bazel/config:v8_target_ia32": "ia32",
+    }),
+    cross_compiling = True,
+    os = select({
+        "//deps/v8/bazel/config:v8_target_android": "android",
+        "//deps/v8/bazel/config:v8_target_linux": "linux",
+        "//deps/v8/bazel/config:v8_target_windows": "win",
+        "//deps/v8/bazel/config:v8_target_macos": "mac",
+        "//deps/v8/bazel/config:v8_target_ios": "ios",
+    }),
+    shared = False,
+)
+
+cc_library(
+    name = "large-pages",
+    srcs = [
+        "src/large_pages/node_large_page.cc",
+    ] + select({
+        "//deps/v8/bazel/config:is_linux_or_android_x64": [
+            "src/large_pages/node_text_start.S",
+        ],
+        "//conditions:default": [],
+    }),
+    hdrs = [
+        "src/large_pages/node_large_page.h",
+    ],
+    copts = [
+        "-Iexternal/node/src",
+    ],
+    defines = [
+        "NODE_USE_V8_PLATFORM=1",
+    ] + select({
+        "//deps/v8/bazel/config:is_posix_x64": [
+            "NODE_ENABLE_LARGE_CODE_PAGES=1",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_binary(
+    name = "js2c",
+    srcs = [
+        "tools/executable_wrapper.h",
+        "tools/js2c.cc",
+    ],
+    defines = select({
+        "//deps/v8/bazel/config:is_apple": [
+            "NODE_JS2C_USE_STRING_LITERALS",
+        ],
+        "//deps/v8/bazel/config:is_linux": [
+            "NODE_JS2C_USE_STRING_LITERALS",
+        ],
+        "//deps/v8/bazel/config:is_android": [
+            "NODE_JS2C_USE_STRING_LITERALS",
+        ],
+        "//conditions:default": [
+        ],
+    }),
+    deps = [
+        ":simdutf",
+        ":uv",
+    ],
+)
+
+filegroup(
+    name = "v8-js",
+    srcs = [
+        "lib/v8.js",
+    ],
+)
+
+filegroup(
+    name = "lib-js",
+    srcs = glob(
+        [
+            "lib/**",
+        ],
+        exclude = [
+            "lib/v8.js",
+        ],
+    ),
+)
+
+filegroup(
+    name = "deps-js",
+    srcs = [
+        "deps/acorn/acorn-walk/dist/walk.js",
+        "deps/acorn/acorn/dist/acorn.js",
+        "deps/cjs-module-lexer/dist/lexer.js",
+        "deps/cjs-module-lexer/lexer.js",
+        "deps/undici/undici.js",
+    ],
+)
+
+genrule(
+    name = "node-javascript",
+    srcs = [
+        ":v8-js",
+        ":lib-js",
+        ":config-gypi",
+        ":deps-js",
+        "//deps/v8:tools-mjs",
+    ],
+    outs = ["node_javascript.cc"],
+    cmd = "$(location :js2c) --strip_prefix $$(dirname $$(dirname $(location :v8-js)))/ $@ $$(dirname $(location :v8-js)) $(locations :deps-js) $(locations //deps/v8:tools-mjs) $(location :config-gypi)",
+    tools = [
+        ":js2c",
+    ],
+)
+
+cc_binary(
+    name = "node-mksnapshot",
+    srcs = [
+        "src/node_snapshot_stub.cc",
+        "tools/snapshot/node_mksnapshot.cc",
+    ],
+    copts = [
+        "-Iexternal/node/src",
+    ],
+    defines = [
+        "NODE_WANT_INTERNALS=1",
+        "NODE_MKSNAPSHOT_USE_STRING_LITERALS=1",
+    ],
+    deps = [
+        ":ada",
+        ":hdr-histogram",
+        ":node-core",
+        ":uvwasi",
+    ],
+)
+
+# Current unused as node/V8 doesn't support cross-compiled snapshots without
+# some additional code refactoring.
+node_mksnapshot(
+    name = "gen-node-snapshot",
+    tool = ":node-mksnapshot",
+)
+
+cc_binary(
+    name = "node",
+    srcs = [
+        # Don't use snapshots when cross-compiling. The current api.cc in V8
+        # doesn't provide a mechnanism to do cross-compilation snapshots in the
+        # same way it does internally for the embedded builtins.
+        # ":gen-node-snapshot",  # Disable snapshot
+        "src/node_snapshot_stub.cc",  # Use snapshot stub instead.
+        "src/node_main.cc",
+    ],
+    deps = [
+        ":node-core",
+    ],
+)
+
+# Depend on this
+cc_library(
+    name = "node-lib",
+    srcs = [
+        "src/node_snapshot_stub.cc",
+    ],
+    deps = [
+        ":node-core",
+    ],
+)

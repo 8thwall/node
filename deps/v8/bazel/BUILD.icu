@@ -14,18 +14,13 @@ cc_library(
         "source/common/**/*.cpp",
     ]),
     copts = select({
-        "@platforms//os:windows": [
-            "/wd4005",  # Macro redefinition.
-            "/wd4068",  # Unknown pragmas.
-            "/wd4267",  # Conversion from size_t on 64-bits.
-            "/utf-8",  # ICU source files are in UTF-8.
-        ],
         "//conditions:default": [
             "-Wno-unused-function",
             "-Wno-parentheses",
             "-Wno-unused-function",
             "-Wno-unused-variable",
             "-Wno-deprecated-declarations",
+            "-Wno-ambiguous-reversed-operator",
         ],
     }),
     data = [":icudata"],
@@ -65,12 +60,6 @@ cc_library(
         "source/i18n/**/*.cpp",
     ]),
     copts = select({
-        "@platforms//os:windows": [
-            "/wd4005",  # Macro redefinition.
-            "/wd4068",  # Unknown pragmas.
-            "/wd4267",  # Conversion from size_t on 64-bits.
-            "/utf-8",  # ICU source files are in UTF-8.
-        ],
         "//conditions:default": [],
     }),
     defines = [
@@ -91,18 +80,13 @@ cc_library(
     name = "icu",
     srcs = [
         "source/stubdata/stubdata.cpp",
+        "source/stubdata/stubdata.h",
     ],
     hdrs = glob([
         "source/common/unicode/*.h",
         "source/i18n/unicode/*.h",
     ]),
     copts = select({
-        "@platforms//os:windows": [
-            "/wd4005",  # Macro redefinition.
-            "/wd4068",  # Unknown pragmas.
-            "/wd4267",  # Conversion from size_t on 64-bits.
-            "/utf-8",  # ICU source files are in UTF-8.
-        ],
         "//conditions:default": [],
     }),
     defines = [

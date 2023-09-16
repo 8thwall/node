@@ -4,6 +4,7 @@
 #include <cinttypes>
 #include <cstdarg>
 #include <cstdio>
+#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -87,6 +88,10 @@ bool StartsWith(const std::string& str, std::string_view prefix) {
     return false;
   }
   return str.compare(0, prefix_len, prefix) == 0;
+}
+
+bool FilenameIsConfigGypi(const std::string& path) {
+  return path == "config.gypi" || EndsWith(path, "/config.gypi");
 }
 
 typedef std::vector<std::string> FileList;
@@ -340,7 +345,7 @@ int WriteIfChanged(const Fragment& out, const std::string& dest) {
   return WriteFileSync(out, dest.c_str());
 }
 
-std::string GetFileId(const std::string& filename) {
+std::string GetFileId(const std::string& filename, const std::string& strip_prefix) {
   size_t end = filename.size();
   size_t start = 0;
   std::string prefix;
@@ -351,13 +356,19 @@ std::string GetFileId(const std::string& filename) {
     end -= kJsSuffix.size();
   }
 
+  if (StartsWith(filename, strip_prefix)) {
+    start += strip_prefix.size();
+  }
+
+  std::string stripped_filename = std::string(filename.begin() + start, filename.end());
+
   // deps/acorn/acorn/dist/acorn.js -> internal/deps/acorn/acorn/dist/acorn
-  if (StartsWith(filename, depsPrefix)) {
-    start = depsPrefix.size();
+  if (StartsWith(stripped_filename, depsPrefix)) {
+    start += depsPrefix.size();
     prefix = "internal/deps/";
-  } else if (StartsWith(filename, libPrefix)) {
+  } else if (StartsWith(stripped_filename, libPrefix)) {
     // lib/internal/url.js -> internal/url
-    start = libPrefix.size();
+    start += libPrefix.size();
     prefix = "";
   }
 
@@ -532,7 +543,8 @@ Fragment GetDefinition(const std::string& var, const std::vector<char>& code) {
 int AddModule(const std::string& filename,
               Fragments* definitions,
               Fragments* initializers,
-              Fragments* registrations) {
+              Fragments* registrations,
+              const std::string& strip_prefix) {
   Debug("AddModule %s start\n", filename.c_str());
 
   int error = 0;
@@ -544,7 +556,7 @@ int AddModule(const std::string& filename,
   if (error != 0) {
     return error;
   }
-  std::string file_id = GetFileId(filename);
+  std::string file_id = GetFileId(filename, strip_prefix);
   std::string var = GetVariableName(file_id);
 
   definitions->emplace_back(GetDefinition(var, code));
@@ -686,7 +698,8 @@ int AddGypi(const std::string& var,
 int JS2C(const FileList& js_files,
          const FileList& mjs_files,
          const std::string& config,
-         const std::string& dest) {
+         const std::string& dest,
+         const std::string& strip_prefix) {
   Fragments definitions;
   definitions.reserve(js_files.size() + mjs_files.size() + 1);
   Fragments initializers;
@@ -695,19 +708,20 @@ int JS2C(const FileList& js_files,
   registrations.reserve(js_files.size() + mjs_files.size() + 1);
 
   for (const auto& filename : js_files) {
-    int r = AddModule(filename, &definitions, &initializers, &registrations);
+    int r = AddModule(filename, &definitions, &initializers, &registrations, strip_prefix);
     if (r != 0) {
       return r;
     }
   }
   for (const auto& filename : mjs_files) {
-    int r = AddModule(filename, &definitions, &initializers, &registrations);
+    int r = AddModule(filename, &definitions, &initializers, &registrations, strip_prefix);
     if (r != 0) {
       return r;
     }
   }
 
-  assert(config == "config.gypi");
+  assert(FilenameIsConfigGypi(config));
+
   // "config.gypi" -> config_raw.
   int r = AddGypi("config", config, &definitions);
   if (r != 0) {
@@ -719,7 +733,7 @@ int JS2C(const FileList& js_files,
 
 int PrintUsage(const char* argv0) {
   fprintf(stderr,
-          "Usage: %s [--verbose] [--root /path/to/project/root] "
+          "Usage: %s [--verbose] [--root /path/to/project/root] [--strip_prefix /prefix/path]"
           "path/to/output.cc path/to/directory "
           "[extra-files ...]\n",
           argv0);
@@ -734,6 +748,7 @@ int Main(int argc, char* argv[]) {
   std::vector<std::string> args;
   args.reserve(argc);
   std::string root_dir;
+  std::string strip_prefix;
   for (int i = 1; i < argc; ++i) {
     std::string arg(argv[i]);
     if (arg == "--verbose") {
@@ -744,6 +759,12 @@ int Main(int argc, char* argv[]) {
         return 1;
       }
       root_dir = argv[++i];
+    } else if (arg == "--strip_prefix") {
+      if (i == argc - 1) {
+        fprintf(stderr, "--strip_prefix must be followed by a path\n");
+        return 1;
+      }
+      strip_prefix = argv[++i];
     } else {
       args.emplace_back(argv[i]);
     }
@@ -789,10 +810,9 @@ int Main(int argc, char* argv[]) {
   // Should have exactly 3 types: `.js`, `.mjs` and `.gypi`.
   assert(file_map.size() == 3);
   auto gypi_it = file_map.find(".gypi");
-  std::string config = "config.gypi";
   // Currently config.gypi is the only `.gypi` file allowed
   if (gypi_it == file_map.end() || gypi_it->second.size() != 1 ||
-      gypi_it->second[0] != config) {
+      !FilenameIsConfigGypi(gypi_it->second[0])) {
     fprintf(
         stderr,
         "Arguments should contain one and only one .gypi file: config.gypi\n");
@@ -805,7 +825,7 @@ int Main(int argc, char* argv[]) {
   std::sort(js_it->second.begin(), js_it->second.end());
   std::sort(mjs_it->second.begin(), mjs_it->second.end());
 
-  return JS2C(js_it->second, mjs_it->second, config, output);
+  return JS2C(js_it->second, mjs_it->second, gypi_it->second[0], output, strip_prefix);
 }
 }  // namespace js2c
 }  // namespace node

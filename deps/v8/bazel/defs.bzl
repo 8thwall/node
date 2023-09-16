@@ -6,8 +6,10 @@
 This module contains helper functions to compile V8.
 """
 
-FlagInfo = provider("The value of an option.",
-fields = ["value"])
+FlagInfo = provider(
+    "The value of an option.",
+    fields = ["value"],
+)
 
 def _options_impl(ctx):
     return FlagInfo(value = ctx.build_setting_value)
@@ -22,6 +24,11 @@ _create_option_string = rule(
     build_setting = config.string(flag = True),
 )
 
+_create_option_string_list = rule(
+    implementation = _options_impl,
+    build_setting = config.string_list(flag = True),
+)
+
 _create_option_int = rule(
     implementation = _options_impl,
     build_setting = config.int(flag = True),
@@ -34,6 +41,9 @@ def v8_flag(name, default = False):
 
 def v8_string(name, default = ""):
     _create_option_string(name = name, build_setting_default = default)
+
+def v8_string_list(name, default = []):
+    _create_option_string_list(name = name, build_setting_default = default)
 
 def v8_int(name, default = 0):
     _create_option_int(name = name, build_setting_default = default)
@@ -50,6 +60,68 @@ v8_custom_config = rule(
     attrs = {
         "_v8_typed_array_max_size_in_heap": attr.label(default = ":v8_typed_array_max_size_in_heap"),
     },
+)
+
+def _v8_target_cpu_transition_impl(
+        settings,
+        attr):  # @unused
+    # Check for an existing v8_target_cpu flag.
+    if "//deps/v8/bazel/config:v8_target_cpu" in settings:
+        if settings["//deps/v8/bazel/config:v8_target_cpu"] != "none":
+            return
+
+    v8_target_platforms = settings["//command_line_option:platforms"]
+
+    # Auto-detect target architecture based on the --cpu flag.
+    mapping = {
+        #"haswell": "x64",
+        "k8": ("x64", "linux"),
+        "x86_64": ("x64", "linux"),
+        "darwin": ("x64", "macos"),
+        "darwin_x86_64": ("x64", "macos"),
+        "ios_arm64": ("arm64", "ios"),
+        "x64_windows": ("x64", "windows"),
+        "x86": ("ia32", "linux"),
+        "aarch64": ("arm64", "linux"),
+        "arm64-v8a": ("arm64", "android"),
+        "arm": ("arm64", "linux"),
+        "darwin_arm64": ("arm64", "macos"),
+        "armeabi-v7a": ("arm", "android"),
+        #"s390x": "s390x",
+        #"riscv64": "riscv64",
+        #"ppc": "ppc64le",
+    }
+    v8_target_cpu, v8_target_os = mapping[settings["//command_line_option:cpu"]]
+    return {
+        "//deps/v8/bazel/config:v8_target_cpu": v8_target_cpu,
+        "//deps/v8/bazel/config:v8_target_os": v8_target_os,
+        "//deps/v8:v8_target_platforms": [str(label) for label in v8_target_platforms],
+    }
+
+# Set the v8_target_cpu to be the correct architecture given the cpu specified
+# on the command line.
+v8_target_cpu_transition = transition(
+    implementation = _v8_target_cpu_transition_impl,
+    inputs = ["//deps/v8/bazel/config:v8_target_cpu", "//command_line_option:cpu", "//command_line_option:platforms"],
+    outputs = ["//deps/v8/bazel/config:v8_target_cpu", "//deps/v8/bazel/config:v8_target_os", "//deps/v8:v8_target_platforms"],
+)
+
+def _v8_target_platform_transition_impl(
+        settings,
+        attr):  # @unused
+    v8_target_platforms = settings.get("//deps/v8:v8_target_platforms", None)
+    if not v8_target_platforms:
+        return
+
+    return {
+        "//command_line_option:platforms": v8_target_platforms,
+    }
+
+# Change the crosstool to the original target platform.
+v8_target_platform_transition = transition(
+    implementation = _v8_target_platform_transition_impl,
+    inputs = ["//deps/v8:v8_target_platforms"],
+    outputs = ["//command_line_option:platforms"],
 )
 
 def _config_impl(ctx):
@@ -94,7 +166,7 @@ def _default_args():
     return struct(
         deps = [":define_flags"],
         defines = select({
-            "@v8//bazel/config:is_windows": [
+            "//deps/v8/bazel/config:is_windows": [
                 "UNICODE",
                 "_UNICODE",
                 "_CRT_RAND_S",
@@ -103,7 +175,7 @@ def _default_args():
             "//conditions:default": [],
         }),
         copts = select({
-            "@v8//bazel/config:is_posix": [
+            "//deps/v8/bazel/config:is_posix": [
                 "-fPIC",
                 "-fno-strict-aliasing",
                 "-Werror",
@@ -119,11 +191,11 @@ def _default_args():
             ],
             "//conditions:default": [],
         }) + select({
-            "@v8//bazel/config:is_clang": [
+            "//deps/v8/bazel/config:is_clang": [
                 "-Wno-invalid-offsetof",
-                "-std=c++17",
+                #"-std=c++17",
             ],
-            "@v8//bazel/config:is_gcc": [
+            "//deps/v8/bazel/config:is_gcc": [
                 "-Wno-extra",
                 "-Wno-array-bounds",
                 "-Wno-class-memaccess",
@@ -138,26 +210,26 @@ def _default_args():
                 "-Wno-stringop-overflow",
                 # Use GNU dialect, because GCC doesn't allow using
                 # ##__VA_ARGS__ when in standards-conforming mode.
-                "-std=gnu++17",
+                #"-std=gnu++17",
             ],
-            "@v8//bazel/config:is_windows": [
-                "/std:c++17",
+            "//deps/v8/bazel/config:is_windows": [
+                #"/std:c++17",
             ],
             "//conditions:default": [],
         }) + select({
-            "@v8//bazel/config:is_gcc_fastbuild": [
+            "//deps/v8/bazel/config:is_gcc_fastbuild": [
                 # Non-debug builds without optimizations fail because
                 # of recursive inlining of "always_inline" functions.
                 "-O1",
             ],
             "//conditions:default": [],
         }) + select({
-            "@v8//bazel/config:is_clang_s390x": [
+            "//deps/v8/bazel/config:is_clang_s390x": [
                 "-fno-integrated-as",
             ],
             "//conditions:default": [],
-        }) +  select({
-            "@v8//bazel/config:is_opt_android": [
+        }) + select({
+            "//deps/v8/bazel/config:is_opt_android": [
                 "-fvisibility=hidden",
                 "-fvisibility-inlines-hidden",
             ],
@@ -166,12 +238,12 @@ def _default_args():
         }),
         includes = ["include"],
         linkopts = select({
-            "@v8//bazel/config:is_windows": [
+            "//deps/v8/bazel/config:is_windows": [
                 "Winmm.lib",
                 "DbgHelp.lib",
                 "Advapi32.lib",
             ],
-            "@v8//bazel/config:is_macos": ["-pthread"],
+            "//deps/v8/bazel/config:is_macos": ["-pthread"],
             "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],
@@ -188,7 +260,7 @@ ENABLE_I18N_SUPPORT_DEFINES = [
 ]
 
 def _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
-     return noicu_srcs != [] or noicu_deps != [] or noicu_defines != [] or icu_srcs != [] or icu_deps != [] or icu_defines != []
+    return noicu_srcs != [] or noicu_deps != [] or noicu_defines != [] or icu_srcs != [] or icu_deps != [] or icu_defines != []
 
 # buildifier: disable=function-docstring
 def v8_binary(
@@ -312,7 +384,7 @@ def _torque_initializers_impl(ctx):
     if ctx.workspace_name == "v8":
         v8root = "."
     else:
-        v8root = "external/v8"
+        v8root = "external/node/deps/v8"
 
     # Arguments
     args = []
@@ -352,6 +424,9 @@ _v8_torque_initializers = rule(
     implementation = _torque_initializers_impl,
     # cfg = v8_target_cpu_transition,
     attrs = {
+        #"_allowlist_function_transition": attr.label(
+        #default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
+        #),
         "prefix": attr.string(mandatory = True),
         "srcs": attr.label_list(allow_files = True, mandatory = True),
         "extras": attr.string_list(),
@@ -372,7 +447,7 @@ def v8_torque_initializers(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
+            "//deps/v8/bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
             "//conditions:default": ":noicu/torque",
         }),
     )
@@ -383,7 +458,7 @@ def v8_torque_initializers(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
+            "//deps/v8/bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
             "//conditions:default": ":icu/torque",
         }),
     )
@@ -392,7 +467,7 @@ def _torque_definitions_impl(ctx):
     if ctx.workspace_name == "v8":
         v8root = "."
     else:
-        v8root = "external/v8"
+        v8root = "external/node/deps/v8"
 
     # Arguments
     args = []
@@ -453,7 +528,7 @@ def v8_torque_definitions(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
+            "//deps/v8/bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
             "//conditions:default": ":noicu/torque",
         }),
     )
@@ -464,47 +539,10 @@ def v8_torque_definitions(name, noicu_srcs, icu_srcs, args, extras):
         args = args,
         extras = extras,
         tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
+            "//deps/v8/bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
             "//conditions:default": ":icu/torque",
         }),
     )
-
-def _v8_target_cpu_transition_impl(settings,
-                                   attr, # @unused
-                                  ):
-    # Check for an existing v8_target_cpu flag.
-    if "@v8//bazel/config:v8_target_cpu" in settings:
-        if settings["@v8//bazel/config:v8_target_cpu"] != "none":
-            return
-
-    # Auto-detect target architecture based on the --cpu flag.
-    mapping = {
-        "haswell": "x64",
-        "k8": "x64",
-        "x86_64": "x64",
-        "darwin": "x64",
-        "darwin_x86_64": "x64",
-        "x64_windows": "x64",
-        "x86": "ia32",
-        "aarch64": "arm64",
-        "arm64-v8a": "arm64",
-        "arm": "arm64",
-        "darwin_arm64": "arm64",
-        "armeabi-v7a": "arm32",
-        "s390x": "s390x",
-        "riscv64": "riscv64",
-        "ppc": "ppc64le",
-    }
-    v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
-    return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}
-
-# Set the v8_target_cpu to be the correct architecture given the cpu specified
-# on the command line.
-v8_target_cpu_transition = transition(
-    implementation = _v8_target_cpu_transition_impl,
-    inputs = ["@v8//bazel/config:v8_target_cpu", "//command_line_option:cpu"],
-    outputs = ["@v8//bazel/config:v8_target_cpu"],
-)
 
 def _mksnapshot(ctx):
     prefix = ctx.attr.prefix
@@ -520,6 +558,8 @@ def _mksnapshot(ctx):
             "--embedded_variant=Default",
             "--target_os",
             ctx.attr.target_os,
+            "--target_arch",
+            ctx.attr.target_cpu,
             "--startup_src",
             outs[0].path,
             "--embedded_src",
@@ -540,6 +580,7 @@ _v8_mksnapshot = rule(
             executable = True,
             cfg = "exec",
         ),
+        "target_cpu": attr.string(mandatory = True),
         "target_os": attr.string(mandatory = True),
         "_allowlist_function_transition": attr.label(
             default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
@@ -550,16 +591,32 @@ _v8_mksnapshot = rule(
     cfg = v8_target_cpu_transition,
 )
 
-def v8_mksnapshot(name, args, suffix = ""):
+def v8_mksnapshot(name, args, exec_compatible_with = None, suffix = ""):
     _v8_mksnapshot(
         name = "noicu/" + name,
         args = args,
         prefix = "noicu",
         tool = ":noicu/mksnapshot" + suffix,
         suffix = suffix,
+        exec_compatible_with = exec_compatible_with,
+        #target_os = select({
+        #    "//deps/v8/bazel/config:is_macos": "mac",
+        #    "//deps/v8/bazel/config:is_ios": "ios",
+        #    "//deps/v8/bazel/config:is_windows": "win",
+        #    "//conditions:default": "",
+        #}),
+        target_cpu = select({
+            "//deps/v8/bazel/config:is_arm64": "arm64",
+            "//deps/v8/bazel/config:is_arm": "arm",
+            "//deps/v8/bazel/config:is_x64": "x64",
+            "//deps/v8/bazel/config:is_ia32": "ia32",
+        }),
         target_os = select({
-            "@v8//bazel/config:is_macos": "mac",
-            "//conditions:default": "",
+            "//deps/v8/bazel/config:is_android": "android",
+            "//deps/v8/bazel/config:is_linux": "linux",
+            "//deps/v8/bazel/config:is_windows": "win",
+            "//deps/v8/bazel/config:is_macos": "mac",
+            "//deps/v8/bazel/config:is_ios": "ios",
         }),
     )
     _v8_mksnapshot(
@@ -568,9 +625,25 @@ def v8_mksnapshot(name, args, suffix = ""):
         prefix = "icu",
         tool = ":icu/mksnapshot" + suffix,
         suffix = suffix,
+        exec_compatible_with = exec_compatible_with,
+        #target_os = select({
+        #    "//deps/v8/bazel/config:is_macos": "mac",
+        #    "//deps/v8/bazel/config:is_ios": "ios",
+        #    "//deps/v8/bazel/config:is_windows": "win",
+        #    "//conditions:default": "",
+        #}),
+        target_cpu = select({
+            "//deps/v8/bazel/config:is_arm64": "arm64",
+            "//deps/v8/bazel/config:is_arm": "arm",
+            "//deps/v8/bazel/config:is_x64": "x64",
+            "//deps/v8/bazel/config:is_ia32": "ia32",
+        }),
         target_os = select({
-            "@v8//bazel/config:is_macos": "mac",
-            "//conditions:default": "",
+            "//deps/v8/bazel/config:is_android": "android",
+            "//deps/v8/bazel/config:is_linux": "linux",
+            "//deps/v8/bazel/config:is_windows": "win",
+            "//deps/v8/bazel/config:is_macos": "mac",
+            "//deps/v8/bazel/config:is_ios": "ios",
         }),
     )
 
@@ -591,7 +664,7 @@ def _json(kv_pairs):
     content += "}\n"
     return content
 
-def build_config_content(cpu, icu):
+def build_config_content(cpu, os, icu):
     return _json([
         ("current_cpu", cpu),
         ("dcheck_always_on", "false"),
@@ -618,6 +691,7 @@ def build_config_content(cpu, icu):
         ("v8_enable_lite_mode", "false"),
         ("v8_enable_runtime_call_stats", "false"),
         ("v8_enable_pointer_compression", "true"),
+        ("v8_enable_pointer_compression", "false"),
         ("v8_enable_pointer_compression_shared_cage", "false"),
         ("v8_enable_third_party_heap", "false"),
         ("v8_enable_webassembly", "false"),
@@ -627,6 +701,7 @@ def build_config_content(cpu, icu):
         ("v8_enable_shared_ro_heap", "false"),
         ("v8_disable_write_barriers", "false"),
         ("v8_target_cpu", cpu),
+        ("v8_target_os", os),
         ("v8_code_comments", "false"),
         ("v8_enable_debug_code", "false"),
         ("v8_enable_verify_heap", "false"),
@@ -643,13 +718,14 @@ def build_config_content(cpu, icu):
 # dynamically populate the build config.
 def v8_build_config(name):
     cpu = _quote("x64")
+    os = _quote("linux")
     native.genrule(
         name = "noicu/" + name,
         outs = ["noicu/" + name + ".json"],
-        cmd = "echo '" + build_config_content(cpu, "false") + "' > \"$@\"",
+        cmd = "echo '" + build_config_content(cpu, os, "false") + "' > \"$@\"",
     )
     native.genrule(
         name = "icu/" + name,
         outs = ["icu/" + name + ".json"],
-        cmd = "echo '" + build_config_content(cpu, "true") + "' > \"$@\"",
+        cmd = "echo '" + build_config_content(cpu, os, "true") + "' > \"$@\"",
     )

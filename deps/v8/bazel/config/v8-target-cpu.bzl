@@ -36,7 +36,7 @@ def v8_configure_target_cpu(name, matching_configs):
 
     # If v8_target_cpu flag is set to 'name'
     native.config_setting(
-        name = "v8_host_target_is_" + name,
+        name = "v8_host_target_cpu_is_" + name,
         flag_values = {
             ":v8_target_cpu": name,
         },
@@ -44,9 +44,9 @@ def v8_configure_target_cpu(name, matching_configs):
 
     # Default target if no v8_host_target flag is set.
     selects.config_setting_group(
-        name = "v8_target_is_" + name,
+        name = "v8_target_cpu_is_" + name,
         match_all = [
-            ":v8_host_target_is_none",
+            ":v8_host_target_cpu_is_none",
             ":is_" + name,
         ],
     )
@@ -55,7 +55,7 @@ def v8_configure_target_cpu(name, matching_configs):
     selects.config_setting_group(
         name = "v8_target_" + name,
         match_any = [
-            ":v8_host_target_is_" + name,
-            ":v8_target_is_" + name,
+            ":v8_host_target_cpu_is_" + name,
+            ":v8_target_cpu_is_" + name,
         ],
     )

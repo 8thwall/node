@@ -12,7 +12,7 @@
 #include <string.h>
 #include <unwind.h>
 
-#include <src/base/platform/platform.h>
+#include "src/base/platform/platform.h"
 
 #include <iomanip>
 #include <ostream>

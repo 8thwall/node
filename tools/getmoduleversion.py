@@ -5,8 +5,9 @@ import re
 
 def get_version():
   node_version_h = os.path.join(
-    os.path.dirname(__file__),
-    '..',
+    #os.path.dirname(__file__),
+    #'..',
+    "external", "node",
     'src',
     'node_version.h')
 

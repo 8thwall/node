@@ -34,6 +34,9 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
+#include "arm-undefs.h"
+#include "arm-defines.h"
+
 #include "src/codegen/arm/assembler-arm.h"
 
 #if V8_TARGET_ARCH_ARM

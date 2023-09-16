@@ -26,6 +26,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "arm-undefs.h"
+#include "arm-defines.h"
+
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/codegen/arm64/assembler-arm64.h"
@@ -76,18 +79,6 @@ constexpr unsigned CpuFeaturesFromCompiler() {
   return features;
 }
 
-constexpr unsigned CpuFeaturesFromTargetOS() {
-  unsigned features = 0;
-#if defined(V8_TARGET_OS_MACOS) && !defined(V8_TARGET_OS_IOS)
-  // TODO(v8:13004): Detect if an iPhone is new enough to support jscvt, dotprot
-  // and lse.
-  features |= 1u << JSCVT;
-  features |= 1u << DOTPROD;
-  features |= 1u << LSE;
-#endif
-  return features;
-}
-
 }  // namespace
 
 // -----------------------------------------------------------------------------
@@ -98,7 +89,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) {
     supported_ |= CpuFeaturesFromCompiler();
-    supported_ |= CpuFeaturesFromTargetOS();
     return;
   }
 

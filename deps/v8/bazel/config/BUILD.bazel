@@ -8,6 +8,11 @@ load(
     "v8_configure_target_cpu",
     "v8_target_cpu",
 )
+load(
+    ":v8-target-os.bzl",
+    "v8_configure_target_os",
+    "v8_target_os",
+)
 
 package(
     default_visibility = [
@@ -79,15 +84,52 @@ config_setting(
     constraint_values = ["@platforms//cpu:ppc"],
 )
 
+config_setting(
+    name = "platform_os_android",
+    constraint_values = ["@platforms//os:android"],
+)
+
+config_setting(
+    name = "platform_os_ios",
+    constraint_values = ["@platforms//os:ios"],
+)
+
+config_setting(
+    name = "platform_os_macos",
+    constraint_values = ["@platforms//os:osx"],
+)
+
+config_setting(
+    name = "platform_os_linux",
+    constraint_values = ["@platforms//os:linux"],
+)
+
+config_setting(
+    name = "platform_os_windows",
+    constraint_values = ["@platforms//os:windows"],
+)
+
 v8_target_cpu(
     name = "v8_target_cpu",
     build_setting_default = "none",
 )
 
 config_setting(
-    name = "v8_host_target_is_none",
+    name = "v8_host_target_cpu_is_none",
     flag_values = {
         ":v8_target_cpu": "none",
+    },
+)
+
+v8_target_os(
+    name = "v8_target_os",
+    build_setting_default = "none",
+)
+
+config_setting(
+    name = "v8_host_target_os_is_none",
+    flag_values = {
+        ":v8_target_os": "none",
     },
 )
 
@@ -126,6 +168,31 @@ v8_configure_target_cpu(
     matching_configs = [":platform_cpu_ppc64le"],
 )
 
+v8_configure_target_os(
+    name = "android",
+    matching_configs = [":platform_os_android"],
+)
+
+v8_configure_target_os(
+    name = "macos",
+    matching_configs = [":platform_os_macos"],
+)
+
+v8_configure_target_os(
+    name = "ios",
+    matching_configs = [":platform_os_ios"],
+)
+
+v8_configure_target_os(
+    name = "linux",
+    matching_configs = [":platform_os_linux"],
+)
+
+v8_configure_target_os(
+    name = "windows",
+    matching_configs = [":platform_os_windows"],
+)
+
 selects.config_setting_group(
     name = "v8_target_is_32_bits",
     match_any = [
@@ -141,26 +208,6 @@ selects.config_setting_group(
         ":v8_target_arm64",
         ":is_x64",
     ],
-)
-
-config_setting(
-    name = "is_linux",
-    constraint_values = ["@platforms//os:linux"],
-)
-
-config_setting(
-    name = "is_android",
-    constraint_values = ["@platforms//os:android"],
-)
-
-config_setting(
-    name = "is_macos",
-    constraint_values = ["@platforms//os:macos"],
-)
-
-config_setting(
-    name = "is_windows",
-    constraint_values = ["@platforms//os:windows"],
 )
 
 selects.config_setting_group(
@@ -189,6 +236,23 @@ selects.config_setting_group(
         ":is_linux",
         ":is_android",
         ":is_macos",
+        ":is_ios",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_linux_or_android",
+    match_any = [
+        ":is_linux",
+        ":is_android",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_linux_or_android_x64",
+    match_all = [
+        ":is_linux_or_android",
+        ":is_x64",
     ],
 )
 
@@ -198,7 +262,17 @@ selects.config_setting_group(
         ":is_windows",
         ":is_linux",
         ":is_macos",
-    ]
+        ":is_ios",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_not_apple",
+    match_any = [
+        ":is_windows",
+        ":is_linux",
+        ":is_android",
+    ],
 )
 
 selects.config_setting_group(
@@ -206,6 +280,7 @@ selects.config_setting_group(
     match_any = [
         ":is_linux",
         ":is_macos",
+        ":is_ios",
     ],
 )
 
@@ -306,9 +381,49 @@ selects.config_setting_group(
 )
 
 selects.config_setting_group(
+    name = "is_linux_arm64",
+    match_all = [
+        ":is_linux",
+        ":is_arm64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_android_arm",
+    match_all = [
+        ":is_android",
+        ":is_arm",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_android_arm64",
+    match_all = [
+        ":is_android",
+        ":is_arm64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_apple",
+    match_any = [
+        ":is_macos",
+        ":is_ios",
+    ],
+)
+
+selects.config_setting_group(
     name = "is_macos_arm64",
     match_all = [
         ":is_macos",
+        ":is_arm64",
+    ],
+)
+
+selects.config_setting_group(
+    name = "is_ios_arm64",
+    match_all = [
+        ":is_ios",
         ":is_arm64",
     ],
 )
@@ -336,6 +451,14 @@ selects.config_setting_group(
     ],
 )
 
+selects.config_setting_group(
+    name = "is_compiler_default_on_ios",
+    match_all = [
+        ":is_compiler_default",
+        ":is_ios",
+    ],
+)
+
 config_setting(
     name = "is_compiler_clang",
     flag_values = {
@@ -346,6 +469,7 @@ config_setting(
 selects.config_setting_group(
     name = "is_clang",
     match_any = [
+        ":is_compiler_default_on_ios",
         ":is_compiler_default_on_macos",
         ":is_compiler_clang",
     ],
@@ -379,5 +503,45 @@ selects.config_setting_group(
     match_all = [
         ":is_gcc",
         ":is_fastbuild",
+    ],
+)
+
+selects.config_setting_group(
+    name = "v8_target_android_arm64",
+    match_all = [
+        ":v8_target_arm64",
+        ":v8_target_android",
+    ],
+)
+
+selects.config_setting_group(
+    name = "v8_target_android_arm",
+    match_all = [
+        ":v8_target_arm",
+        ":v8_target_android",
+    ],
+)
+
+selects.config_setting_group(
+    name = "v8_target_ios_arm64",
+    match_all = [
+        ":v8_target_arm64",
+        ":v8_target_ios",
+    ],
+)
+
+selects.config_setting_group(
+    name = "v8_target_macos_arm64",
+    match_all = [
+        ":v8_target_arm64",
+        ":v8_target_macos",
+    ],
+)
+
+selects.config_setting_group(
+    name = "v8_target_linux_arm64",
+    match_all = [
+        ":v8_target_arm64",
+        ":v8_target_linux",
     ],
 )

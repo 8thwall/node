@@ -598,6 +598,7 @@ filegroup(
         "include/v8-platform.h",
         "include/v8config.h",
     ],
+    visibility = [ "//:__subpackages__" ],
 )
 
 filegroup(
@@ -650,10 +651,12 @@ filegroup(
         "include/cppgc/process-heap-statistics.h",
         "include/cppgc/sentinel-pointer.h",
         "include/cppgc/source-location.h",
+        "include/cppgc/testing.h",
         "include/cppgc/trace-trait.h",
         "include/cppgc/type-traits.h",
         "include/cppgc/visitor.h",
     ],
+    visibility = [ "//:__subpackages__" ],
 )
 
 filegroup(
@@ -711,6 +714,7 @@ filegroup(
         ":cppgc_headers_files",
         ":v8_version_files",
     ],
+    visibility = [ "//:__subpackages__" ],
 )
 
 filegroup(
@@ -918,6 +922,7 @@ filegroup(
         "src/libplatform/worker-thread.cc",
         "src/libplatform/worker-thread.h",
     ],
+    visibility = [ "//:__subpackages__" ],
 )
 
 filegroup(

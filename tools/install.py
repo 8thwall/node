@@ -19,8 +19,8 @@ def abspath(*args):
   path = os.path.join(*args)
   return os.path.abspath(path)
 
-def load_config():
-  with open('config.gypi') as f:
+def load_config(config):
+  with open(config) as f:
     return ast.literal_eval(f.read())
 
 def try_unlink(path):
@@ -308,8 +308,8 @@ def headers(action):
     action(files_arg, dest)
 
   action([
-    'common.gypi',
-    'config.gypi',
+    #'common.gypi',
+    #'config.gypi',
     'src/node.h',
     'src/node_api.h',
     'src/js_native_api.h',
@@ -352,10 +352,12 @@ def headers(action):
 def run(args):
   global node_prefix, install_path, target_defaults, variables
 
-  # chdir to the project's top-level directory
-  os.chdir(abspath(os.path.dirname(__file__), '..'))
+  import glob
+  config = os.path.abspath(glob.glob('**/config.gypi', recursive=True)[0])
 
-  conf = load_config()
+  srcs = glob.glob('external/node/**/*.h', recursive=True)
+
+  conf = load_config(config)
   variables = conf['variables']
   target_defaults = conf['target_defaults']
 
@@ -368,7 +370,10 @@ def run(args):
     node_prefix = args[3]
 
   # install_path thus becomes the base target directory.
-  install_path = dst_dir + node_prefix + '/'
+  install_path = os.path.abspath(dst_dir + node_prefix + '/')
+
+  # chdir to the project's top-level directory
+  os.chdir('external/node')
 
   cmd = args[1] if len(args) > 1 else 'install'
 

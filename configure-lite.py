@@ -1395,7 +1395,6 @@ def configure_node(o):
 
   o['variables']['node_no_browser_globals'] = b(options.no_browser_globals)
 
-  print("HERE", options.shared)
   o['variables']['node_shared'] = b(options.shared)
   o['variables']['libdir'] = options.libdir
   node_module_version = getmoduleversion.get_version()

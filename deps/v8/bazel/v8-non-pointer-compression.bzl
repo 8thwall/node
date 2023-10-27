@@ -1,12 +1,12 @@
 def _v8_disable_pointer_compression(settings, attr):
     return {
-        "//:v8_enable_pointer_compression": "False",
+        "//deps/v8:v8_enable_pointer_compression": "False",
     }
 
 v8_disable_pointer_compression = transition(
     implementation = _v8_disable_pointer_compression,
     inputs = [],
-    outputs = ["//:v8_enable_pointer_compression"],
+    outputs = ["//deps/v8:v8_enable_pointer_compression"],
 )
 
 # The implementation of transition_rule: all this does is copy the

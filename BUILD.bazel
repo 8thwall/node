@@ -1,5 +1,87 @@
 load(":rules.bzl", "node_configure", "node_mksnapshot")
 
+filegroup(
+    name = "node_crypto_sources",
+    srcs = [
+        "src/crypto/crypto_aes.cc",
+        "src/crypto/crypto_bio.cc",
+        "src/crypto/crypto_bio.h",
+        "src/crypto/crypto_cipher.cc",
+        "src/crypto/crypto_cipher.h",
+        "src/crypto/crypto_clienthello.cc",
+        "src/crypto/crypto_clienthello.h",
+        "src/crypto/crypto_clienthello-inl.h",
+        "src/crypto/crypto_common.cc",
+        "src/crypto/crypto_common.h",
+        "src/crypto/crypto_context.cc",
+        "src/crypto/crypto_context.h",
+        "src/crypto/crypto_dh.cc",
+        "src/crypto/crypto_dh.h",
+        "src/crypto/crypto_dsa.cc",
+        "src/crypto/crypto_dsa.h",
+        "src/crypto/crypto_ec.cc",
+        "src/crypto/crypto_ec.h",
+        "src/crypto/crypto_hash.cc",
+        "src/crypto/crypto_hash.h",
+        "src/crypto/crypto_hkdf.cc",
+        "src/crypto/crypto_hkdf.h",
+        "src/crypto/crypto_hmac.cc",
+        "src/crypto/crypto_hmac.h",
+        "src/crypto/crypto_keygen.cc",
+        "src/crypto/crypto_keygen.h",
+        "src/crypto/crypto_keys.cc",
+        "src/crypto/crypto_keys.h",
+        "src/crypto/crypto_pbkdf2.cc",
+        "src/crypto/crypto_pbkdf2.h",
+        "src/crypto/crypto_random.cc",
+        "src/crypto/crypto_random.h",
+        "src/crypto/crypto_rsa.cc",
+        "src/crypto/crypto_rsa.h",
+        "src/crypto/crypto_scrypt.cc",
+        "src/crypto/crypto_scrypt.h",
+        "src/crypto/crypto_sig.cc",
+        "src/crypto/crypto_sig.h",
+        "src/crypto/crypto_spkac.cc",
+        "src/crypto/crypto_spkac.h",
+        "src/crypto/crypto_timing.cc",
+        "src/crypto/crypto_timing.h",
+        "src/crypto/crypto_tls.cc",
+        "src/crypto/crypto_tls.h",
+        "src/crypto/crypto_util.cc",
+        "src/crypto/crypto_util.h",
+        "src/crypto/crypto_x509.cc",
+        "src/crypto/crypto_x509.h",
+        "src/node_crypto.cc",
+        "src/node_crypto.h",
+    ],
+)
+
+filegroup(
+    name = "node_quic_sources",
+    srcs = [
+        "src/quic/bindingdata.cc",
+        "src/quic/bindingdata.h",
+        "src/quic/cid.cc",
+        "src/quic/cid.h",
+        "src/quic/data.cc",
+        "src/quic/data.h",
+        "src/quic/logstream.cc",
+        "src/quic/logstream.h",
+        "src/quic/packet.cc",
+        "src/quic/packet.h",
+        "src/quic/preferredaddress.cc",
+        "src/quic/preferredaddress.h",
+        "src/quic/sessionticket.cc",
+        "src/quic/sessionticket.h",
+        "src/quic/tlscontext.cc",
+        "src/quic/tlscontext.h",
+        "src/quic/tokens.cc",
+        "src/quic/tokens.h",
+        "src/quic/transportparams.cc",
+        "src/quic/transportparams.h",
+    ],
+)
+
 cc_library(
     name = "postject",
     hdrs = [
@@ -586,6 +668,8 @@ cc_library(
 cc_library(
     name = "node-core",
     srcs = [
+        ":node_crypto_sources",
+        ":node_quic_sources",
         ":node-javascript",
         "src/api/async_resource.cc",
         "src/api/callback.cc",
@@ -703,7 +787,9 @@ cc_library(
         "-Wno-unused-function",
         "-Wno-unused-variable",
     ],
-    defines = select({
+    defines = [
+        "HAVE_OPENSSL=1",
+    ] + select({
         "//deps/v8/bazel/config:v8_target_x64": [
             "NODE_ARCH=\\\"x64\\\"",
         ],
@@ -742,6 +828,7 @@ cc_library(
     }),
     local_defines = [
         "NODE_WANT_INTERNALS=1",
+        "NODE_OPENSSL_SYSTEM_CERT_PATH=\\\"\\\"",
     ] + select({
         "//deps/v8/bazel/config:is_windows": [
         ],
@@ -765,6 +852,7 @@ cc_library(
         "@org_brotli//:brotlidec",
         "@org_brotli//:brotlienc",
         "//deps/v8:v8_icu",
+        "//deps/openssl",
         #"@zlib-chromium//:zlib",  # Fix missing symbols then use this.
         "@zlib",
     ],

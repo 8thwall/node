@@ -1,0 +1,132 @@
+load("//deps/openssl:config/archs/darwin64-arm64-cc/asm_avx2/defs.bzl", "darwin_arm64_defines", "darwin_arm64_hdrs", "darwin_arm64_includes", "darwin_arm64_srcs")
+load("//deps/openssl:config/archs/linux-elf/no-asm/defs.bzl", "android_arm64_defines", "android_arm64_hdrs", "android_arm64_includes", "android_arm64_srcs")
+
+_common_includes = [
+    "openssl",
+    "openssl/include",
+    "openssl/crypto",
+    "openssl/crypto/include",
+    "openssl/crypto/modes",
+    "openssl/crypto/ec/curve448",
+    "openssl/crypto/ec/curve448/arch_32",
+    "openssl/providers/common/include",
+    "openssl/providers/implementations/include",
+    "config",
+]
+
+_textual_hdrs = [
+    "openssl/providers/implementations/macs/blake2_mac_impl.c",
+    "openssl/crypto/des/ncbc_enc.c",
+    "openssl/crypto/LPdir_unix.c",
+] + glob([
+    "openssl/providers/*.inc",
+    "openssl/providers/**/*.inc",
+])
+
+_internal_hdrs = glob(
+    [
+        "**/*.h",
+    ],
+    exclude = [
+        "config/archs/*.h",
+        "config/archs/**/*.h",
+    ],
+)
+
+_common_copts = [
+    "-Wno-deprecated-declarations",
+    "-Wno-missing-field-initializers",
+] + ["-Iexternal/node/deps/openssl/{}".format(inc) for inc in _common_includes]
+
+_common_defines = [
+    "asm=__asm__",
+    'MODULESDIR=\\"$(BINDIR)/external/node/deps/openssl/obj/lib/openssl-modules\\"',
+] + select({
+    "//deps/v8/bazel/config:is_windows": [
+        'OPENSSLDIR=\\"C:\\\\Program Files\\\\Common Files\\\\SSL\\\\"',
+        'ENGINESDIR=\\"NUL\\"',
+        "OPENSSL_SYS_WIN32",
+        "WIN32_LEAN_AND_MEAN",
+        "L_ENDIAN",
+        "_CRT_SECURE_NO_DEPRECATE",
+        "UNICODE",
+        "_UNICODE",
+    ],
+    "//deps/v8/bazel/config:is_apple": [
+        'OPENSSLDIR=\\"/System/Library/OpenSSL/\\"',
+        'ENGINESDIR=\\"/dev/null\\"',
+    ],
+    "//conditions:default": [
+        'OPENSSLDIR=\\"/etc/ssl\\"',
+        'ENGINESDIR=\\"/dev/null\\"',
+        "TERMIOS",
+    ],
+})
+
+cc_library(
+    name = "openssl-common",
+    linkopts = select({
+        "//deps/v8/bazel/config:is_windows": [
+            "-lws2_32.lib",
+            "-lgdi32.lib",
+            "-ladvapi32.lib",
+            "-lcrypt32.lib",
+            "-luser32.lib",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
+    name = "openssl",
+    srcs = select({
+        "@niantic//bzl/conditions:osx-arm64": darwin_arm64_srcs,
+        "@niantic//bzl/conditions:android-arm64": android_arm64_srcs,
+        "//conditions:default": [],
+    }) + _internal_hdrs,
+    hdrs = select({
+        "@niantic//bzl/conditions:osx-arm64": darwin_arm64_hdrs,
+        "@niantic//bzl/conditions:android-arm64": android_arm64_hdrs,
+        "//conditions:default": [],
+    }) + glob([
+        "openssl/include/*.h",
+        "openssl/include/**/*.h",
+        "openssl/crypto/include/*.h",
+        "openssl/crypto/include/**/*.h",
+    ]),
+    copts = select({
+        "@niantic//bzl/conditions:osx-arm64": darwin_arm64_includes,
+        "@niantic//bzl/conditions:android-arm64": android_arm64_includes,
+        "//conditions:default": [],
+    }) + _common_copts,
+    includes = select({
+        "@niantic//bzl/conditions:osx-arm64": [
+            "config/archs/darwin64-arm64-cc/asm_avx2/crypto",
+            "config/archs/darwin64-arm64-cc/asm_avx2/include",
+            "config/archs/darwin64-arm64-cc/asm_avx2/providers/common/include",
+        ],
+        "@niantic//bzl/conditions:android-arm64": [
+            "config/archs/linux-elf/no-asm/crypto",
+            "config/archs/linux-elf/no-asm/include",
+            "config/archs/linux-elf/no-asm/providers/common/include",
+        ],
+        "//conditions:default": [],
+    }) + [
+        "openssl/crypto/include",
+        "openssl/include",
+    ],
+    local_defines = _common_defines + select({
+        "@niantic//bzl/conditions:osx-arm64": darwin_arm64_defines,
+        "@niantic//bzl/conditions:android-arm64": android_arm64_defines,
+        "//conditions:default": [],
+    }) + [
+        "OPENSSL_NO_HW",
+        "OPENSSL_API_COMPAT=0x10100001L",
+        "STATIC_LEGACY",
+    ],
+    textual_hdrs = _textual_hdrs,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":openssl-common",
+    ],
+)

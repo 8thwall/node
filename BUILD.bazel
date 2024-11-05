@@ -1346,6 +1346,7 @@ cc_binary(
     deps = [
         ":node-core",
     ],
+    visibility = ["//visibility:public"],
 )
 
 cc_binary(

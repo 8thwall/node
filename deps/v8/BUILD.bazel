@@ -3929,6 +3929,7 @@ v8_library(
         ],
         "//conditions:default": [],
     }),
+    defines = ["BUILDING_V8_SHARED"],
     copts = [
         "-Iexternal/node/deps/v8",
         "-I$(BINDIR)/external/node/deps/v8",

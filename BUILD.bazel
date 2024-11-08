@@ -1,3 +1,4 @@
+load("@pip-deps//:requirements.bzl", "requirement")
 load(":rules.bzl", "node_configure", "node_mksnapshot")
 
 filegroup(
@@ -671,6 +672,8 @@ cc_library(
         ":node_crypto_sources",
         ":node_quic_sources",
         ":node-javascript",
+        ":v8-inspector-protocol-compressed",
+        ":v8-inspector-protocol",
         "src/api/async_resource.cc",
         "src/api/callback.cc",
         "src/api/embed_helpers.cc",
@@ -693,6 +696,18 @@ cc_library(
         "src/handle_wrap.cc",
         "src/heap_utils.cc",
         "src/histogram.cc",
+        "src/inspector_agent.cc",
+        "src/inspector_io.cc",
+        "src/inspector_js_api.cc",
+        "src/inspector_profiler.cc",
+        "src/inspector_socket_server.cc",
+        "src/inspector_socket.cc",
+        "src/inspector/main_thread_interface.cc",
+        "src/inspector/node_string.cc",
+        "src/inspector/runtime_agent.cc",
+        "src/inspector/tracing_agent.cc",
+        "src/inspector/worker_agent.cc",
+        "src/inspector/worker_inspector.cc",
         "src/js_native_api_v8.cc",
         "src/js_stream.cc",
         "src/json_utils.cc",
@@ -782,6 +797,9 @@ cc_library(
         "src/**/*.h",
     ]),
     copts = [
+        "-iquote",
+        "external/node/src",  # This ensures that src/util.h is resolved before any other util.h
+        "-I$(GENDIR)/external/node/src",
         "-Iexternal/node/src",
         "-Wno-deprecated-declarations",
         "-Wno-unused-function",
@@ -789,6 +807,7 @@ cc_library(
     ],
     defines = [
         "HAVE_OPENSSL=1",
+        "HAVE_INSPECTOR=1",
     ] + select({
         "//deps/v8/bazel/config:v8_target_x64": [
             "NODE_ARCH=\\\"x64\\\"",
@@ -1343,10 +1362,10 @@ cc_binary(
         "src/node_main.cc",
     ],
     linkshared = 1,
+    visibility = ["//visibility:public"],
     deps = [
         ":node-core",
     ],
-    visibility = ["//visibility:public"],
 )
 
 cc_binary(
@@ -1380,4 +1399,147 @@ cc_library(
     deps = [
         ":node-core",
     ],
+)
+
+py_binary(
+    name = "convert_protocol_to_json",
+    srcs = ["tools/inspector_protocol/convert_protocol_to_json.py"],
+)
+
+py_binary(
+    name = "code_generator",
+    srcs = ["tools/inspector_protocol/code_generator.py"],
+    deps = [
+        requirement("jinja2"),
+    ],
+)
+
+py_binary(
+    name = "concatenate_protocols",
+    srcs = ["tools/inspector_protocol/concatenate_protocols.py"],
+)
+
+py_binary(
+    name = "compress_json",
+    srcs = ["tools/compress_json.py"],
+)
+
+genrule(
+    name = "inspector-protocol-json",
+    srcs = ["src/inspector/node_protocol.pdl"],
+    outs = ["node_protocol.json"],
+    cmd = "$(location :convert_protocol_to_json) $(location src/inspector/node_protocol.pdl) $@",
+    tools = [":convert_protocol_to_json"],
+)
+
+genrule(
+    name = "v8-inspector-protocol-json",
+    srcs = ["//deps/v8:include/js_protocol.pdl"],
+    outs = ["v8-inspector-protocol.json"],
+    cmd = "$(location :convert_protocol_to_json) $(location //deps/v8:include/js_protocol.pdl) $@",
+    tools = [":convert_protocol_to_json"],
+)
+
+filegroup(
+    name = "inspector-protocol-templates",
+    srcs = [
+        "tools/inspector_protocol/lib/Allocator_h.template",
+        "tools/inspector_protocol/lib/Array_h.template",
+        "tools/inspector_protocol/lib/DispatcherBase_cpp.template",
+        "tools/inspector_protocol/lib/DispatcherBase_h.template",
+        "tools/inspector_protocol/lib/ErrorSupport_cpp.template",
+        "tools/inspector_protocol/lib/ErrorSupport_h.template",
+        "tools/inspector_protocol/lib/Forward_h.template",
+        "tools/inspector_protocol/lib/FrontendChannel_h.template",
+        "tools/inspector_protocol/lib/Maybe_h.template",
+        "tools/inspector_protocol/lib/Object_cpp.template",
+        "tools/inspector_protocol/lib/Object_h.template",
+        "tools/inspector_protocol/lib/Parser_cpp.template",
+        "tools/inspector_protocol/lib/Parser_h.template",
+        "tools/inspector_protocol/lib/Protocol_cpp.template",
+        "tools/inspector_protocol/lib/ValueConversions_h.template",
+        "tools/inspector_protocol/lib/Values_cpp.template",
+        "tools/inspector_protocol/lib/Values_h.template",
+        "tools/inspector_protocol/lib/base_string_adapter_cc.template",
+        "tools/inspector_protocol/lib/base_string_adapter_h.template",
+        "tools/inspector_protocol/lib/encoding_cpp.template",
+        "tools/inspector_protocol/lib/encoding_h.template",
+        "tools/inspector_protocol/templates/Exported_h.template",
+        "tools/inspector_protocol/templates/Imported_h.template",
+        "tools/inspector_protocol/templates/TypeBuilder_cpp.template",
+        "tools/inspector_protocol/templates/TypeBuilder_h.template",
+    ],
+)
+
+genrule(
+    name = "inspector-v8-concatenated-protocol",
+    srcs = [
+        ":v8-inspector-protocol-json",
+        ":inspector-protocol-json",
+    ],
+    outs = [
+        "concatenated_protocols.json",
+    ],
+    cmd = (
+        "mkdir -p $$(dirname $(location concatenated_protocols.json)) && " +
+        "$(location :concatenate_protocols) $(SRCS) $(location concatenated_protocols.json)"
+    ),
+    tools = [":concatenate_protocols"],
+)
+
+genrule(
+    name = "v8-inspector-protocol",
+    srcs = [
+        "src/inspector/node_protocol_config.json",
+        ":inspector-protocol-templates",
+        ":inspector-v8-concatenated-protocol",
+    ],
+    outs = [
+        "src/node/inspector/protocol/base_string_adapter.h",
+        "src/node/inspector/protocol/Console.cpp",
+        "src/node/inspector/protocol/Console.h",
+        "src/node/inspector/protocol/Debugger.cpp",
+        "src/node/inspector/protocol/Debugger.h",
+        "src/node/inspector/protocol/Forward.h",
+        "src/node/inspector/protocol/HeapProfiler.cpp",
+        "src/node/inspector/protocol/HeapProfiler.h",
+        "src/node/inspector/protocol/NodeRuntime.cpp",
+        "src/node/inspector/protocol/NodeRuntime.h",
+        "src/node/inspector/protocol/NodeTracing.cpp",
+        "src/node/inspector/protocol/NodeTracing.h",
+        "src/node/inspector/protocol/NodeWorker.cpp",
+        "src/node/inspector/protocol/NodeWorker.h",
+        "src/node/inspector/protocol/Profiler.cpp",
+        "src/node/inspector/protocol/Profiler.h",
+        "src/node/inspector/protocol/Protocol.cpp",
+        "src/node/inspector/protocol/Protocol.h",
+        "src/node/inspector/protocol/Runtime.cpp",
+        "src/node/inspector/protocol/Runtime.h",
+        "src/node/inspector/protocol/Schema.cpp",
+        "src/node/inspector/protocol/Schema.h",
+    ],
+    cmd = (
+        "mkdir -p external/node/src/inspector/node/inspector/protocol/ &&" +
+        "cat $(location :inspector-v8-concatenated-protocol) > external/node/src/inspector/node_protocol.json && " +
+        " cd external/node && " +
+        "../../$(location :code_generator) " +
+        "  --jinja_dir tools/inspector_protocol " +
+        "  --output_base src/inspector/ " +
+        "  --config src/inspector/node_protocol_config.json && " +
+        "mkdir -p ../../$(RULEDIR)/src/node/inspector/protocol/ && " +
+        "cp -r src/inspector/node/inspector/protocol/* ../../$(RULEDIR)/src/node/inspector/protocol/"
+    ),
+    tools = [":code_generator"],
+)
+
+genrule(
+    name = "v8-inspector-protocol-compressed",
+    srcs = [
+        ":inspector-v8-concatenated-protocol",
+    ],
+    outs = [
+        "v8_inspector_protocol_json.h",
+    ],
+    cmd = "$(location :compress_json) $(SRCS) $@",
+    tools = [":compress_json"],
 )

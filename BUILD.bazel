@@ -1378,6 +1378,7 @@ cc_binary(
         "src/node_snapshot_stub.cc",  # Use snapshot stub instead.
         "src/node_main.cc",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         ":node-core",
     ],

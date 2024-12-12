@@ -1,5 +1,6 @@
 load("@pip-deps//:requirements.bzl", "requirement")
 load(":rules.bzl", "node_configure", "node_mksnapshot")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 
 filegroup(
     name = "node_crypto_sources",
@@ -1384,9 +1385,32 @@ cc_binary(
     ],
 )
 
+bool_flag(
+    name = "strip-libnode",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "strip-libnode-true",
+    flag_values = {
+        ":strip-libnode": "True",
+    },
+)
+
+genrule(
+    name = "node-stripped",
+    outs = ["_stripped/libnode.so"],
+    cmd = "cp $< $@",
+    srcs = [":node.stripped"],
+)
+
 cc_import(
     name = "node-shared",
-    shared_library = ":node",
+    shared_library = select({
+      ":strip-libnode-true": ":node-stripped",
+      "//conditions:default": ":node",
+    }),
     visibility = ["//visibility:public"],
 )
 

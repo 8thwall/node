@@ -244,6 +244,7 @@ def _default_args():
                 "Advapi32.lib",
             ],
             "//deps/v8/bazel/config:is_macos": ["-pthread"],
+            "//deps/v8/bazel/config:is_ios": ["-pthread"],
             "//conditions:default": ["-Wl,--no-as-needed -ldl -pthread"],
         }) + select({
             ":should_add_rdynamic": ["-rdynamic"],

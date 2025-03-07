@@ -81,11 +81,13 @@ cc_library(
     name = "openssl",
     srcs = select({
         "@niantic//bzl/conditions:osx-arm64": darwin_arm64_srcs,
+        "@niantic//bzl/conditions:ios-arm64": darwin_arm64_srcs,
         "@niantic//bzl/conditions:android-arm64": android_arm64_srcs,
         "//conditions:default": [],
     }) + _internal_hdrs,
     hdrs = select({
         "@niantic//bzl/conditions:osx-arm64": darwin_arm64_hdrs,
+        "@niantic//bzl/conditions:ios-arm64": darwin_arm64_hdrs,
         "@niantic//bzl/conditions:android-arm64": android_arm64_hdrs,
         "//conditions:default": [],
     }) + glob([
@@ -96,11 +98,17 @@ cc_library(
     ]),
     copts = select({
         "@niantic//bzl/conditions:osx-arm64": darwin_arm64_includes,
+        "@niantic//bzl/conditions:ios-arm64": darwin_arm64_includes,
         "@niantic//bzl/conditions:android-arm64": android_arm64_includes,
         "//conditions:default": [],
     }) + _common_copts,
     includes = select({
         "@niantic//bzl/conditions:osx-arm64": [
+            "config/archs/darwin64-arm64-cc/asm_avx2/crypto",
+            "config/archs/darwin64-arm64-cc/asm_avx2/include",
+            "config/archs/darwin64-arm64-cc/asm_avx2/providers/common/include",
+        ],
+        "@niantic//bzl/conditions:ios-arm64": [
             "config/archs/darwin64-arm64-cc/asm_avx2/crypto",
             "config/archs/darwin64-arm64-cc/asm_avx2/include",
             "config/archs/darwin64-arm64-cc/asm_avx2/providers/common/include",
@@ -117,6 +125,7 @@ cc_library(
     ],
     local_defines = _common_defines + select({
         "@niantic//bzl/conditions:osx-arm64": darwin_arm64_defines,
+        "@niantic//bzl/conditions:ios-arm64": darwin_arm64_defines,
         "@niantic//bzl/conditions:android-arm64": android_arm64_defines,
         "//conditions:default": [],
     }) + [

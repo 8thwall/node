@@ -885,6 +885,7 @@ filegroup(
         ],
         "//deps/v8/bazel/config:is_ios": [
             "src/base/debug/stack_trace_posix.cc",
+            "src/base/platform/platform-darwin.cc",
             "src/base/platform/platform-ios.cc",
         ],
         "//deps/v8/bazel/config:is_windows": [
@@ -2612,6 +2613,10 @@ filegroup(
             "src/trap-handler/handler-outside-posix.cc",
         ],
         "//deps/v8/bazel/config:is_macos_arm64": [
+            "src/trap-handler/handler-inside-posix.cc",
+            "src/trap-handler/handler-outside-posix.cc",
+        ],
+        "//deps/v8/bazel/config:is_ios_arm64": [
             "src/trap-handler/handler-inside-posix.cc",
             "src/trap-handler/handler-outside-posix.cc",
         ],
